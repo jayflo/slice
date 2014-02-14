@@ -57,16 +57,16 @@ slice_bounds() {
     local __end=$2
 
     if [[ $label =~ ^[0-9]+$ ]]; then
-        REGEX='\[\s*slice\s*:\?\s*[^\s]*\s*\]'
+        REGEX='\[\s*[sS][lL][iI][cC][eE]\s*:\?\s*[^\s]*\s*\]'
         X=`grep -n $REGEX $3 | cut -f1 -d: | head -$label | tail -1`
         : ${X:=0}
     else
-        REGEX='\[\s*slice\s*:\?\s*'$label'\s*\]'
+        REGEX="\[\s*[sS][lL][iI][cC][eE]\s*:\?\s*$label\s*\]"
         X=`grep -n $REGEX $3 | cut -f1 -d: | head -1`
         [[ -z "$X" ]] && echo "Slice $label not found in $3." && exit 1
     fi
 
-    REGEX='\(\[\s*slice\s*:\?\s*[^\s]*\s*\]\|$\)'
+    REGEX='\(\[\s*[sS][lL][iI][cC][eE]\s*:\?\s*[^\s]*\s*\]\|$\)'
     Y=`sed -n $X',$/p' $3 | grep -n $REGEX | cut -f1 -d: | head -1`
 
     eval $__beg="'$X'"
@@ -92,7 +92,7 @@ add_group() {
 # $1=file, #2=group name
 add_file_to_group() {
     readlink -f $1 >> $GROUPS_DIR/$2
-    sort -u $GROUPS_DIR/$2 -o $GROUPS_DIR/$2
+    # sort -u $GROUPS_DIR/$2 -o $GROUPS_DIR/$2
 }
 
 # $1=source file, $2=destination file
@@ -104,13 +104,13 @@ swap_slice() {
     slice_bounds dest_start dest_end $2 &
     wait
 
-    sed -i $dest_start','$dest_end'd' $2
-    sed -i {$dest_start-1}' r '<(sed -n $source_start','$source_end 'p' $1) $2
+    sed -i "$dest_start,$dest_end d" $2
+    sed -i "$(($dest_start-1)) r "<(sed -n "$source_start,$source_end p" $1) $2
 }
 
 # $1=file, $2=state name
 write_file() {
-    local DIR=`dirname $(readlink -f $1)`
+    local DIR=${$(readlink -f $1)%/*}
 
     mkdir -p $FILES_DIR/$DIR &> /dev/null
     cp $1 $FILES_DIR/$DIR/$1.$2

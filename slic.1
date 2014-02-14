@@ -1,0 +1,126 @@
+./" vim: set fo+=atw:
+
+.TH "slic" 1 "FEBRUARY 2014"
+.SH NAME
+slic - command line tool for managing pieces of multiple files.
+.SH SYNOPSIS
+slic [OPTIONS] [file(s)]
+.SH DESCRIPTION
+Slic is a partial file state manager that allows one to alter the state of many 
+files on the fly.
+In any file, enclose a block (henceforth called a slice) of text using
+.B [slice]
+tags, then use slic to save the state of the file.
+Afterwards one can revert the slice to the saved state from the command line (of 
+course there may be multiple states).
+Files may contain many slices which can be labeled using the syntax
+.B [slice:<NAME>]
+as the opening tag.
+Files may be put into groups allowing one to alter
+slices of many files at once.
+If no slices are present in a file, slic considers the entire file a single 
+slice.
+.TP
+-g [NAME]
+perform command on group NAME.
+.TP
+-a [FILES]
+(requires -g) add FILES to specified group.
+.TP
+-l [LABEL]
+perform command on slice LABEL.
+.TP
+-s [NAME]
+use state NAME for command.
+.TP
+-w
+write file or group state.
+.TP
+-q [-g GROUP] [FILES]
+display slice info on GROUP and/or FILES.
+.SH DETAILS
+Slice tags need not be on their own line.
+The lines containing the opening and closing slice tags are part of the 
+slice.
+All USER DEFINED slices are indexed starting at 1.  Unlabeled slices may be 
+referenced by their index.
+Lines preceeding the first slice tag (possibly none) constitute the 0 slice.
+All lines proceeding the final slice tag (possibly none) constitute a slice 
+whose index varies but can be labeled.
+Thus, a file containing only a single slice tag will have two slices, 0 and 1; 
+if that tag contains label <NAME>, slice 1 may also be referenced by <NAME>.
+There is a default state for all files and groups that is written to when no 
+state name is given.
+Using the
+.I -w
+flag more than once without specifying a state name via
+.I -s
+will result in this default state being overwritten.
+.P
+slic saves all file states in
+.I $HOME/.cache/slic_db
+.SH EXAMPLES
+.SS DOCUMENT SYNTAX
+.P
+#!/bin/bash
+.br
+    
+.br
+    code here (slice 0)
+.br
+    
+.br
+# [slice:my_label]
+.br
+    
+.br
+    more code here (slice my_label or 1)
+.br
+    
+.br
+# [slice]
+.br
+    
+.br
+    more code till end of file here (slice 2)
+.SS COMMAND LINE
+.IP "slic -ag themes"
+create group 'themes'.
+.TP
+slic -ag themes FILE1 FILE2
+add 'FILE1' and 'FILE2' to group 'themes' creating the group first if necessary.
+.TP
+slic -g themes -s solarized -w
+write all files in group 'themes' to state 'solarized'.
+.TP
+slic -g themes -s zenburn
+swap all files in group 'themes' to state 'zenburn'.
+.TP
+slic -l functions -s efficient mem_swap.c
+change the state of the 'functions' slice in 'mem_swap.c' to 'efficient'.
+.TP
+slic -g mem_manager -l btree -s reduced
+change the state of the 'btree' slice to 'reduced' for all files in group 'mem_manager'.
+.TP
+slic -qg mem_manager
+show all files in group 'mem_manager'.
+.TP
+slic -l 2 -q FILE1
+show information on slice '2' in 'FILE1'.
+.SH NOTES
+Slic is NOT meant to be used as a version control system (VCS) nor backup
+mechanism for your files.
+It is simply a tool use to modify (pieces) of groups of files on the fly.
+For users who forego the use of a DE and simply use a window manager, slic may 
+be used as theme switcher.
+Create a themes group, add all files created/modified for your current setup and 
+save the state of the group.  
+Then modify those files again as desired, save the group to a second state to 
+easily switch between the two themes.
+.SH BUGS
+Report all bugs to github repo listed below.
+.SH AUTHOR
+Jaret Flores.
+Repo: https://github.com/jayflo/slice.git
+.SH COPYRIGHT
+Specify your copyright information.
