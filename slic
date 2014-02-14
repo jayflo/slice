@@ -1,0 +1,122 @@
+#!/bin/bash
+
+# make cache if it doesn't exist and don't complain
+{
+SLIC_DIR=$HOME/.cache/slic_db && mkdir -p $SLIC_DIR &> /dev/null
+GROUPS_DIR=$SLIC_DIR/groups && mkdir -p $GROUPS_DIR &> /dev/null
+FILES_DIR=$HOME/files && mkdir -p $FILES_DIR &> /dev/null
+} &
+
+# actions
+query=0 add=0 write=0
+
+# descriptors
+group= state= label= mass="$@"
+
+# exits (stay between 3-125)
+BAD_ARGUMENTS=3
+
+# parse arguments
+while getopts "qawg:s:l:" opt; do
+    case $opt in
+    q) query=1 ;;
+    a) add=2 ;;
+    w) write=4 ;;
+    g) group=$OPTARG ;;
+    s) state=$OPTARG ;;
+    l) label=$OPTARG ;;
+    *)
+        echo >&2 "Invalid argument: -$OPTARG"
+        exit $BAD_ARGUMENTS ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+# invalid actions
+count=$query+$add+$write
+
+if [ ($count -eq 3) || ($count -eq 5) ]; then
+    echo "Cannot query while adding [-qa] or writing [-qw] files."
+    exit $BAD_ARGUMENTS
+fi
+
+# if necessary and undefined, 1st slice is assumed
+: ${label:=1}
+
+# wait incase directories do not exist
+wait
+
+# Getters
+# ======================================
+
+# $1=start line var name, $2=end line var name
+# $3=file
+slice_bounds() {
+    local REGEX= local X= local Y=
+    local __beg=$1
+    local __end=$2
+
+    if [[ $label =~ ^[0-9]+$ ]]; then
+        REGEX='\[\s*slice\s*:\?\s*[^\s]*\s*\]'
+        X=`grep -n $REGEX $3 | cut -f1 -d: | head -$label | tail -1`
+        : ${X:=0}
+    else
+        REGEX='\[\s*slice\s*:\?\s*'$label'\s*\]'
+        X=`grep -n $REGEX $3 | cut -f1 -d: | head -1`
+        [[ -z "$X" ]] && echo "Slice $label not found in $3." && exit 1
+    fi
+
+    REGEX='\(\[\s*slice\s*:\?\s*[^\s]*\s*\]\|$\)'
+    Y=`sed -n $X',$/p' $3 | grep -n $REGEX | cut -f1 -d: | head -1`
+
+    eval $__beg="'$X'"
+    eval $__end="'$Y'"
+}
+
+# $1=file
+get_slice() {
+    local slice_start= local slice_end=
+
+    slice_bounds slice_start slice_end $1
+    sed $slice_start','$slice_end' p' $1
+}
+
+# Setters
+# ===========================================
+
+# $1=group name
+add_group() {
+    touch "$GROUPS_DIR/$1"
+}
+
+# $1=file, #2=group name
+add_file_to_group() {
+    readlink -f $1 >> $GROUPS_DIR/$2
+    sort -u $GROUPS_DIR/$2 -o $GROUPS_DIR/$2
+}
+
+# $1=source file, $2=destination file
+swap_slice() {
+    local source_start= local source_end=
+    local dest_start= local dest_end=
+
+    slice_bounds source_start source_end $1 &
+    slice_bounds dest_start dest_end $2 &
+    wait
+
+    sed -i $dest_start','$dest_end'd' $2
+    sed -i {$dest_start-1}' r '<(sed -n $source_start','$source_end 'p' $1) $2
+}
+
+# $1=file, $2=state name
+write_file() {
+    local DIR=`dirname $(readlink -f $1)`
+
+    mkdir -p $FILES_DIR/$DIR &> /dev/null
+    cp $1 $FILES_DIR/$DIR/$1.$2
+}
+
+
+
+
+
